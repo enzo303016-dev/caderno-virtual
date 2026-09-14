@@ -41,6 +41,7 @@ import {
   Brain,
   RotateCcw,
   Award,
+  CheckSquare,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Aula, AulaMaterialPdf, Anotacao, TipoAnotacao, StatusAula } from '../../types';
@@ -117,6 +118,8 @@ export const AulasView: React.FC<AulasViewProps> = () => {
   const [activeTab, setActiveTab] = useState<
     'sequencia' | 'informacoes' | 'materiais' | 'checklist' | 'anotacoes' | 'quadros' | 'mapas' | 'assistente_ia' | 'revisao'
   >('sequencia');
+
+  console.log('Active Tab:', activeTab);
 
   // Modais de Criação/Edição de Aula
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -908,6 +911,16 @@ const handleRunAi = async (type: string) => {
   // MODO 1: PÁGINA COMPLETA DE ESTUDO DA AULA (SE viewingAula !== null)
   // =========================================================================
   if (viewingAula) {
+    // 1. Verificação de segurança: Se os dados necessários ainda não estiverem disponíveis, exibe um estado de carregamento simples.
+    if (!viewingAula.id) {
+      return (
+        <div className="flex flex-col items-center justify-center p-20 bg-white rounded-2xl border border-stone-200 shadow-xs">
+          <div className="w-8 h-8 border-3 border-amber-600 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-sm font-semibold text-stone-600">Carregando aula...</p>
+        </div>
+      );
+    }
+
     const materiaAtual = materias.find((m) => m.id === viewingAula.materiaId);
     const qtdMateriais = (viewingAula.materialPdf ? 1 : 0) + (viewingAula.linkAula ? 1 : 0);
 
@@ -1078,23 +1091,11 @@ const handleRunAi = async (type: string) => {
         </div>
 
         {/* 3. BARRA DE ATALHOS RÁPIDOS E ÍNDICE VISUAL DA AULA (Sem Rolagem Horizontal) */}
-        <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs space-y-2.5">
-          <div className="flex items-center justify-between text-2xs font-bold uppercase tracking-wider text-stone-600">
-            <span className="flex items-center gap-1.5">
-              <Layers className="w-4 h-4 text-amber-600" />
-              <span>Navegação por Seções da Aula</span>
-            </span>
-            <span className="text-stone-400 font-normal">
-              Rolagem Vertical Ativa
-            </span>
-          </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs">
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => {
-                setActiveTab('sequencia');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
+              onClick={() => setActiveTab('sequencia')}
               className={`flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-xs font-bold transition ${
                 activeTab === 'sequencia'
                   ? 'bg-amber-600 text-white shadow-2xs'
@@ -1102,66 +1103,80 @@ const handleRunAi = async (type: string) => {
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>Ver Tudo (Visão Completa)</span>
+              <span>Ver Tudo</span>
             </button>
-
             <button
               type="button"
               onClick={() => {
-                setActiveTab('sequencia');
-                document.getElementById('secao-aula-materiais')?.scrollIntoView({ behavior: 'smooth' });
+                setActiveTab('materiais');
               }}
-              className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-xs font-semibold bg-stone-100 text-stone-700 hover:bg-rose-50 hover:text-rose-800 transition border border-stone-200/60"
+              className={`flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-xs font-semibold transition border border-stone-200/60 ${
+                activeTab === 'materiais'
+                  ? 'bg-rose-600 text-white shadow-2xs'
+                  : 'bg-stone-100 text-stone-700 hover:bg-rose-50 hover:text-rose-800'
+              }`}
             >
-              <FileText className="w-3.5 h-3.5 text-rose-600" />
+              <FileText className="w-3.5 h-3.5" />
               <span>📄 Material / PDF ({qtdMateriais})</span>
             </button>
 
             <button
               type="button"
               onClick={() => {
-                setActiveTab('sequencia');
-                document.getElementById('secao-aula-anotacoes')?.scrollIntoView({ behavior: 'smooth' });
+                setActiveTab('anotacoes');
               }}
-              className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-xs font-semibold bg-stone-100 text-stone-700 hover:bg-amber-50 hover:text-amber-900 transition border border-stone-200/60"
+              className={`flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-xs font-semibold transition border border-stone-200/60 ${
+                activeTab === 'anotacoes'
+                  ? 'bg-amber-600 text-white shadow-2xs'
+                  : 'bg-stone-100 text-stone-700 hover:bg-amber-50 hover:text-amber-900'
+              }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <Sparkles className="w-3.5 h-3.5" />
               <span>📝 Anotações ({notasDestaAula.length})</span>
             </button>
 
             <button
               type="button"
               onClick={() => {
-                setActiveTab('sequencia');
-                document.getElementById('secao-aula-ia')?.scrollIntoView({ behavior: 'smooth' });
+                setActiveTab('assistente_ia');
               }}
-              className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-300/80 hover:bg-amber-100 transition shadow-2xs"
+              className={`flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-xs font-semibold transition border border-amber-300/80 shadow-2xs ${
+                activeTab === 'assistente_ia'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-amber-50 text-amber-900 hover:bg-amber-100'
+              }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <Sparkles className="w-3.5 h-3.5" />
               <span>🤖 Assistente de IA</span>
             </button>
 
             <button
               type="button"
               onClick={() => {
-                setActiveTab('sequencia');
-                document.getElementById('secao-aula-revisao')?.scrollIntoView({ behavior: 'smooth' });
+                setActiveTab('revisao');
               }}
-              className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-xs font-semibold bg-purple-50 text-purple-900 border border-purple-300/80 hover:bg-purple-100 transition shadow-2xs"
+              className={`flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-xs font-semibold transition border border-purple-300/80 shadow-2xs ${
+                activeTab === 'revisao'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-purple-50 text-purple-900 hover:bg-purple-100'
+              }`}
             >
-              <Brain className="w-3.5 h-3.5 text-purple-700" />
+              <Brain className="w-3.5 h-3.5" />
               <span>🧠 Revisar com IA</span>
             </button>
 
             <button
               type="button"
               onClick={() => {
-                setActiveTab('sequencia');
-                document.getElementById('secao-aula-checklist')?.scrollIntoView({ behavior: 'smooth' });
+                setActiveTab('checklist');
               }}
-              className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-xs font-semibold bg-stone-100 text-stone-700 hover:bg-emerald-50 hover:text-emerald-900 transition border border-stone-200/60"
+              className={`flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-xs font-semibold transition border border-emerald-300/80 shadow-2xs ${
+                activeTab === 'checklist'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-emerald-50 text-emerald-900 hover:bg-emerald-100'
+              }`}
             >
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <CheckSquare className="w-3.5 h-3.5" />
               <span>📋 Progresso ({currentChecklistProgress.percentage}%)</span>
             </button>
           </div>
