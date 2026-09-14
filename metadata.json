@@ -1,0 +1,6 @@
+{
+  "name": "Caderno Virtual – Direito",
+  "description": "Caderno digital pessoal para organização de matérias, aulas, anotações, calendário e estudos de Direito.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
