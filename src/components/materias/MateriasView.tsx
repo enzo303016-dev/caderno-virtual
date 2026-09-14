@@ -18,6 +18,7 @@ import {
 import { useApp } from '../../context/AppContext';
 import { Materia, DiaSemana } from '../../types';
 import { Modal } from '../common/Modal';
+import { AulaFormModal } from '../aulas/AulaFormModal';
 import { getDisciplinaEstatisticas } from '../../utils/estudoTracking';
 
 const DIAS_SEMANA: DiaSemana[] = [
@@ -43,6 +44,7 @@ const CORES_PALETA = [
 
 const MateriaDetalheView: React.FC<{ materiaId: string }> = ({ materiaId }) => {
   const { materias, aulas, setSelectedMateriaId, setSelectedAulaIdToView, setActiveSection } = useApp();
+  const [isAddAulaOpen, setIsAddAulaOpen] = useState(false);
   const materia = materias.find(m => m.id === materiaId);
 
   if (!materia) {
@@ -61,7 +63,7 @@ const MateriaDetalheView: React.FC<{ materiaId: string }> = ({ materiaId }) => {
       <div className="flex items-center gap-3">
         <button
           onClick={() => setSelectedMateriaId(null)}
-          className="p-2 bg-white border border-stone-200 rounded-lg hover:bg-stone-50 transition"
+          className="p-2 bg-white border border-stone-200 rounded-lg hover:bg-stone-50 transition cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 text-stone-600" />
         </button>
@@ -75,15 +77,39 @@ const MateriaDetalheView: React.FC<{ materiaId: string }> = ({ materiaId }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-stone-200/90 shadow-xs p-5">
-        <h2 className="text-lg font-serif font-bold text-stone-900 mb-4 flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-amber-600" />
-          Aulas da Disciplina
-        </h2>
+      <div className="bg-white rounded-xl border border-stone-200/90 shadow-xs p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-100">
+          <h2 className="text-lg font-serif font-bold text-stone-900 flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-amber-600" />
+            <span>Aulas da Disciplina</span>
+            {aulasDaMateria.length > 0 && (
+              <span className="text-xs font-normal text-stone-400">({aulasDaMateria.length})</span>
+            )}
+          </h2>
+
+          <button
+            type="button"
+            id="btn-cadastrar-aula-materia"
+            onClick={() => setIsAddAulaOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold shadow-2xs transition self-start sm:self-auto cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Cadastrar Aula</span>
+          </button>
+        </div>
 
         {aulasDaMateria.length === 0 ? (
-          <div className="text-center py-12 text-stone-400 text-xs">
-            Nenhuma aula cadastrada nesta matéria.
+          <div className="text-center py-12 text-stone-400 space-y-3">
+            <p className="text-xs">Nenhuma aula cadastrada nesta matéria.</p>
+            <button
+              type="button"
+              id="btn-cadastrar-primeira-aula-materia"
+              onClick={() => setIsAddAulaOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold shadow-2xs transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Cadastrar Aula</span>
+            </button>
           </div>
         ) : (
           <div className="space-y-3">
@@ -110,6 +136,12 @@ const MateriaDetalheView: React.FC<{ materiaId: string }> = ({ materiaId }) => {
           </div>
         )}
       </div>
+
+      <AulaFormModal
+        isOpen={isAddAulaOpen}
+        onClose={() => setIsAddAulaOpen(false)}
+        defaultMateriaId={materia.id}
+      />
     </div>
   );
 };
