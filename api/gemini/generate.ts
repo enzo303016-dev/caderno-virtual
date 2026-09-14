@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleGeminiRequest } from '../../src/server/geminiHandler';
+import { handleGeminiRequest } from '../_lib/geminiHandler';
 
 export default async function handler(
   request: VercelRequest,
