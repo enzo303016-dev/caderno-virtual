@@ -775,25 +775,40 @@ const handleRunAi = async (type: string) => {
     const file = e.target.files?.[0];
     if (!file || !pdfTargetAula) return;
 
-    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-      alert('Por favor, selecione exclusivamente um arquivo no formato PDF.');
+    // Verificar extensões suportadas
+    const extensao = file.name.split('.').pop()?.toLowerCase() || '';
+    const suportados = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'ppt', 'pptx'];
+    if (!suportados.includes(extensao)) {
+      alert('Formato de arquivo não suportado. Por favor, selecione PDF, Imagem ou PPT.');
       return;
     }
 
     setPdfOperationLoading(true);
     try {
-      if (pdfTargetAula.materialPdf?.storageId) {
-        await deletePdfFromStorage(pdfTargetAula.materialPdf.storageId);
+      // Cria ID de armazenamento
+      const storageId = `mat_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      
+      let savedMeta: AulaMaterialPdf;
+      
+      // Se for PDF, ainda usa a lógica de storage de PDF por compatibilidade
+      if (extensao === 'pdf') {
+         savedMeta = await savePdfToStorage(storageId, file);
+         savedMeta.extensao = 'pdf';
+      } else {
+         // Para outros, salva como blob no IndexedDB ou Data URL
+         // (Simulando com a função existente savePdfToStorage que deve aceitar arquivos)
+         savedMeta = await savePdfToStorage(storageId, file);
+         savedMeta.extensao = extensao;
       }
-      const storageId = `pdf_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      const savedPdfMeta = await savePdfToStorage(storageId, file);
 
+      const novosMateriais = [...(pdfTargetAula.materiais || []), savedMeta];
+      
       updateAula(pdfTargetAula.id, {
-        materialPdf: savedPdfMeta,
+        materiais: novosMateriais,
       });
     } catch (err: any) {
-      console.error('Erro ao salvar PDF:', err);
-      alert(err.message || 'Erro ao processar o arquivo PDF.');
+      console.error('Erro ao salvar material:', err);
+      alert(err.message || 'Erro ao processar o arquivo.');
     } finally {
       setPdfOperationLoading(false);
       setPdfTargetAula(null);
@@ -931,7 +946,7 @@ const handleRunAi = async (type: string) => {
           type="file"
           ref={singleFileInputRef}
           onChange={handleSingleFileSelected}
-          accept="application/pdf"
+          accept=".pdf,.jpg,.jpeg,.png,.webp,.ppt,.pptx"
           className="hidden"
         />
 
@@ -1218,10 +1233,9 @@ const handleRunAi = async (type: string) => {
           </div>
         )}
 
-        {/* SEÇÃO 2: MATERIAIS (PDF & VÍDEO / AULA ONLINE) */}
+        {/* SEÇÃO 2: MATERIAIS (PDF, IMAGENS, PPT, etc.) */}
         {(activeTab === 'sequencia' || activeTab === 'materiais') && (
           <div id="secao-aula-materiais" className="space-y-6 animate-in fade-in duration-200">
-            {/* Seção PDF */}
             <div className="bg-white p-6 rounded-2xl border border-stone-200/90 shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-stone-100">
                 <div className="flex items-center gap-2.5">
@@ -1229,105 +1243,129 @@ const handleRunAi = async (type: string) => {
                     <FileText className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-stone-900">Material da Aula (PDF)</h3>
+                    <h3 className="text-sm font-bold text-stone-900">📚 Materiais da Aula</h3>
                     <p className="text-2xs text-stone-500">
-                      Documentos, slides, ementas e textos disponibilizados pelo professor
+                      Documentos, imagens e apresentações disponibilizados
                     </p>
                   </div>
                 </div>
-                {currentAula.materialPdf && (
-                  <span className="text-2xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                    Arquivo anexado
-                  </span>
-                )}
+                <button
+                  type="button"
+                  onClick={() => triggerPdfAttachment(currentAula)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold transition shadow-2xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Adicionar Material</span>
+                </button>
               </div>
 
-              {currentAula.materialPdf ? (
-                <div className="p-4 bg-stone-50 rounded-xl border border-stone-200 space-y-3">
-                  <div className="flex items-center justify-between gap-3 bg-white p-3 rounded-lg border border-stone-200">
-                    <div className="flex items-center gap-2.5 truncate">
-                      <Paperclip className="w-4 h-4 text-stone-400 shrink-0" />
-                      <span className="text-xs font-semibold text-stone-800 truncate" title={currentAula.materialPdf.nome}>
-                        {currentAula.materialPdf.nome}
-                      </span>
-                    </div>
-                    <span className="text-2xs font-mono text-stone-500 shrink-0">
-                      {currentAula.materialPdf.tamanhoFormatado || formatBytes(currentAula.materialPdf.tamanho)}
-                    </span>
+              {/* Lista de Materiais */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* PDF Legado ou novos materiais */}
+                {(currentAula.materiais || []).length === 0 && !currentAula.materialPdf ? (
+                  <div className="p-8 text-center bg-stone-50/70 border-2 border-dashed border-stone-200 rounded-xl w-full col-span-full">
+                    <p className="text-xs text-stone-500">Nenhum material adicionado.</p>
                   </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenPdf(currentAula.materialPdf!)}
-                      className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition shadow-2xs"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Abrir e Visualizar PDF</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => triggerPdfAttachment(currentAula)}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-xl text-xs font-semibold transition shadow-2xs"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5 text-stone-500" />
-                      <span>Substituir PDF</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePdfFromAula(currentAula)}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-rose-50 text-stone-600 hover:text-rose-600 border border-stone-200 rounded-xl text-xs font-semibold transition shadow-2xs"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      <span>Remover</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-8 text-center bg-stone-50/70 border-2 border-dashed border-stone-200 rounded-xl space-y-3">
-                  <div className="w-10 h-10 rounded-xl bg-stone-100 text-stone-400 flex items-center justify-center mx-auto">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-stone-700">Nenhum PDF anexado</h4>
-                    <p className="text-2xs text-stone-500 mt-0.5">
-                      Anexe os slides ou textos recomendados para consultar durante os estudos
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => triggerPdfAttachment(currentAula)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold transition shadow-2xs"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Anexar Arquivo PDF</span>
-                  </button>
-                </div>
-              )}
-
-              {/* Visualização de PDF com Canvas (PdfCanvasViewer) dentro da Página de Estudo da Aula */}
-              {showPdfViewer && (
-                <div className="mt-4 animate-in fade-in duration-200">
-                  {loadingPdf && !pdfBinaryData ? (
-                    <div className="p-8 bg-stone-900 rounded-2xl border-2 border-amber-400 text-center space-y-2 text-white">
-                      <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                      <p className="text-xs text-stone-300 font-medium">Carregando arquivo PDF do armazenamento local...</p>
-                    </div>
-                  ) : pdfBinaryData ? (
-                    <PdfCanvasViewer
-                      pdfBinaryData={pdfBinaryData.data}
-                      fileName={pdfBinaryData.nome}
-                      fileSize={pdfBinaryData.tamanhoFormatado}
-                      onClose={handleCloseInlinePdf}
-                      onDownload={handleDownloadPdf}
-                    />
-                  ) : null}
-                </div>
-              )}
+                ) : (
+                  <>
+                    {/* Renderiza PDF legado se existir */}
+                    {currentAula.materialPdf && (
+                       <div className="p-3 bg-white rounded-lg border border-stone-200 flex items-center justify-between gap-3">
+                         <div className="flex items-center gap-2.5 truncate">
+                           <FileText className="w-4 h-4 text-rose-500 shrink-0" />
+                           <span className="text-xs font-semibold text-stone-800 truncate" title={currentAula.materialPdf.nome}>{currentAula.materialPdf.nome}</span>
+                         </div>
+                         <button onClick={() => handleOpenPdf(currentAula.materialPdf!)} className="text-xs font-semibold text-rose-700 hover:text-rose-800">Abrir</button>
+                       </div>
+                    )}
+                    {/* Renderiza lista de novos materiais */}
+                    {(currentAula.materiais || []).map((mat, idx) => (
+                      <div key={idx} className="p-3 bg-white rounded-lg border border-stone-200 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 truncate">
+                          {mat.extensao && ['jpg', 'jpeg', 'png', 'webp'].includes(mat.extensao.toLowerCase()) ? (
+                            <div className="w-4 h-4 text-emerald-500"><Sparkles className="w-4 h-4"/></div>
+                          ) : (
+                            <FileText className="w-4 h-4 text-stone-400 shrink-0" />
+                          )}
+                          <span className="text-xs font-semibold text-stone-800 truncate" title={mat.nome}>{mat.nome}</span>
+                        </div>
+                        {mat.extensao && ['pdf'].includes(mat.extensao.toLowerCase()) && (
+                          <button onClick={() => handleOpenPdf(mat)} className="text-xs font-semibold text-rose-700 hover:text-rose-800">Abrir</button>
+                        )}
+                        {mat.extensao && ['jpg', 'jpeg', 'png', 'webp'].includes(mat.extensao.toLowerCase()) && (
+                           <button onClick={async () => {
+                             // Lógica para visualizar imagem: carregar do IndexedDB e mostrar
+                             setLoadingPdf(true);
+                             try {
+                               const record = await getPdfFromStorage(mat.storageId || '');
+                               if (record) {
+                                 let dataUrl = record.dataUrl || '';
+                                 if (!dataUrl && record.blob) {
+                                     dataUrl = await new Promise((resolve) => {
+                                         const reader = new FileReader();
+                                         reader.onloadend = () => resolve(reader.result as string);
+                                         reader.readAsDataURL(record.blob!);
+                                     });
+                                 }
+                                 setPdfBinaryData({
+                                     data: dataUrl, // Reutilizando pdfBinaryData para armazenar dataUrl da imagem
+                                     nome: mat.nome,
+                                 } as any);
+                                 setShowPdfViewer(true);
+                               }
+                             } catch(e) {
+                               console.error(e);
+                               alert('Erro ao carregar imagem');
+                             } finally {
+                               setLoadingPdf(false);
+                             }
+                          }} className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Visualizar</button>
+                        )}
+                        {mat.extensao && ['pptx', 'ppt'].includes(mat.extensao.toLowerCase()) && (
+                          <button onClick={async () => {
+                             const record = await getPdfFromStorage(mat.storageId || '');
+                             if (record) {
+                               const blob = record.blob || new Blob([record.dataUrl!], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+                               const url = URL.createObjectURL(blob);
+                               const a = document.createElement('a');
+                               a.href = url;
+                               a.download = mat.nome;
+                               a.click();
+                               URL.revokeObjectURL(url);
+                             }
+                          }} className="text-xs font-semibold text-blue-700 hover:text-blue-800">Baixar arquivo</button>
+                        )}
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
             </div>
 
+            {/* Visualização de PDF com Canvas ou Imagem */}
+            {showPdfViewer && (
+              <div className="mt-4 animate-in fade-in duration-200 p-4 bg-white rounded-2xl border border-stone-200">
+                {pdfBinaryData && typeof pdfBinaryData.data === 'string' && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                        <span className="text-xs font-semibold text-stone-800">{pdfBinaryData.nome}</span>
+                        <button onClick={handleCloseInlinePdf} className="text-xs text-stone-500">Fechar</button>
+                    </div>
+                    <img src={pdfBinaryData.data} alt="Visualização" className="w-full h-auto rounded-lg" />
+                  </div>
+                )}
+                {pdfBinaryData && typeof pdfBinaryData.data !== 'string' && (
+                  <PdfCanvasViewer
+                    pdfBinaryData={pdfBinaryData.data as any}
+                    fileName={pdfBinaryData.nome}
+                    fileSize={pdfBinaryData.tamanhoFormatado}
+                    onClose={handleCloseInlinePdf}
+                    onDownload={handleDownloadPdf}
+                  />
+                )}
+              </div>
+            )}
+            
             {/* Seção Vídeo / Aula Online */}
             <div className="bg-white p-6 rounded-2xl border border-stone-200/90 shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-stone-100">

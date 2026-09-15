@@ -36,6 +36,7 @@ export interface AulaMaterialPdf {
   storageId?: string; // ID único para recuperação no IndexedDB ou storage futuro
   url?: string; // Data URL ou URL remota
   provider?: 'local_indexeddb' | 'supabase_storage' | 'external_url';
+  extensao?: string; // Extensão do arquivo (pdf, png, pptx, etc.)
 }
 
 export type StatusAula = 'nao_iniciada' | 'em_estudo' | 'estudada' | 'revisada';
@@ -61,7 +62,8 @@ export interface Aula {
   titulo: string;
   conteudo: string;
   observacoes: string;
-  materialPdf?: AulaMaterialPdf; // Material em PDF vinculado
+  materialPdf?: AulaMaterialPdf; // Mantido para compatibilidade, mas agora é opcional ou legado
+  materiais?: AulaMaterialPdf[]; // Nova biblioteca de materiais (Requisito 1)
   linkAula?: string; // Link da aula ou vídeo online (YouTube, Drive, Teams, etc.)
   status?: StatusAula; // Status de estudo da aula
   checklist?: ChecklistEstudo; // Checklist de estudo da aula
